@@ -41,7 +41,7 @@
 #define PORT_SIZE 8
 
 #define NUM_SOURCE_TYPES 4
-#define NUM_SAMPLE_RATES 18
+#define NUM_SAMPLE_RATES 19
 #define CHANNEL_BUFFER_SIZE 500
 #define ERR_BUFF_SIZE 2048
 
@@ -128,7 +128,8 @@ public:
     NIDAQ::uInt32 numAOChannels;
     NIDAQ::uInt32 numDIChannels;
     NIDAQ::uInt32 numDOChannels;
-
+    NIDAQ::uInt32 slotNbr;
+    
     bool isUSBDevice;
     bool simAISamplingSupported;
 
@@ -144,6 +145,7 @@ public:
 
 private:
     String name;
+
 };
 
 class NIDAQmxDeviceManager
@@ -214,7 +216,7 @@ public:
     void run();
 
     Array<NIDAQ::float64> sampleRates;
-
+    
     OwnedArray<AnalogInput> ai;
     OwnedArray<InputChannel> di;
 

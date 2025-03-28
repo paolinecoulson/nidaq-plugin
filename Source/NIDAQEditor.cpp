@@ -427,7 +427,7 @@ void NIDAQEditor::draw()
     Array<NIDAQDevice*> devices = t->getDevices();
     for (int i = 0; i < t->getNumAvailableDevices(); i++)
     {
-        deviceSelectBox->addItem (devices[i]->productName, i + 1);
+        deviceSelectBox->addItem (devices[i]->productName + " Slot " + std::to_string(devices[i]->slotNbr), i + 1);
     }
     deviceSelectBox->setSelectedItemIndex (t->getDeviceIndex(), false);
     deviceSelectBox->addListener (this);

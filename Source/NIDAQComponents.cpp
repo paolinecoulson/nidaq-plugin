@@ -93,6 +93,9 @@ void NIDAQmxDeviceManager::scanForDevices()
             NIDAQ::DAQmxGetDevProductType (STR2CHR (deviceName), &pname[0], sizeof (pname));
             devices.add (new NIDAQDevice (deviceName));
             devices.getLast()->productName = String (&pname[0]);
+            NIDAQ::uInt32 slotNbr;
+            NIDAQ::DAQmxGetDevPXISlotNum(STR2CHR (deviceName), &slotNbr);
+            devices.getLast()->slotNbr = slotNbr;
         }
     }
 
@@ -102,10 +105,11 @@ void NIDAQmxDeviceManager::scanForDevices()
 
 int NIDAQmxDeviceManager::getDeviceIndexFromName (String name)
 {
-    for (int i = 0; i < devices.size(); i++)
-        if (devices[i]->getName() == name)
-            return i;
 
+    for (int i = 0; i < devices.size(); i++)
+        if (devices[i]->getName() == name){
+            return i;
+        }
     return -1;
 }
 
@@ -118,7 +122,7 @@ NIDAQmx::NIDAQmx (NIDAQDevice* device_)
 
     // Pre-define reasonable sample rates
     float sample_rates[NUM_SAMPLE_RATES] = {
-        1000.0f, 1250.0f, 1500.0f, 2000.0f, 2500.0f, 3000.0f, 3330.0f, 4000.0f, 5000.0f, 6250.0f, 8000.0f, 10000.0f, 12500.0f, 15000.0f, 20000.0f, 25000.0f, 30000.0f, 40000.0f
+        1000.0f, 1250.0f, 1500.0f, 2000.0f, 2500.0f, 3000.0f, 3330.0f, 4000.0f, 5000.0f, 6250.0f, 8000.0f, 10000.0f, 12500.0f, 15000.0f, 20000.0f, 25000.0f, 30000.0f, 40000.0f, 62500.0f
     };
 
     sampleRates.clear();
@@ -182,6 +186,8 @@ void NIDAQmx::connect()
 
         NIDAQ::float64 data[512];
         NIDAQ::DAQmxGetDevAIVoltageRngs (STR2CHR (deviceName), &data[0], sizeof (data));
+
+
 
         // Get available voltage ranges
         device->voltageRanges.clear();
