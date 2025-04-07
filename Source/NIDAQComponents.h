@@ -38,7 +38,7 @@
 
 #define DEFAULT_DIGITAL_PORT 0
 
-#define PORT_SIZE 8
+#define PORT_SIZE 32
 
 #define NUM_SOURCE_TYPES 4
 #define NUM_SAMPLE_RATES 19
@@ -164,39 +164,40 @@ public:
     NIDAQDevice* getDeviceFromName (String deviceName);
 
     friend class NIDAQThread;
+    OwnedArray<NIDAQDevice> devices;
 
 private:
-    OwnedArray<NIDAQDevice> devices;
+
     int activeDeviceIndex;
 };
 
 class NIDAQmx : public Thread
 {
 public:
-    NIDAQmx (NIDAQDevice* device_);
+    NIDAQmx (Array<NIDAQDevice*> devices);
     ~NIDAQmx() {};
 
     /* Pointer to the active device */
-    NIDAQDevice* device;
+    Array<NIDAQDevice*> devices;
 
     /* Connects to the active device */
-    void connect();
+    void connect(int index);
 
     /* Unique device properties */
-    String getProductName() { return device->productName; };
-    String getSerialNumber() { return String (device->serialNum); };
-
+    String getProductName(int index=0) { return devices[index]->productName; };
+    String getSerialNumber(int index=0) { return String (devices[index]->serialNum); };
+    String getSlotNumber(int index=0) { return String (devices[index]->slotNbr); };
     /* Analog configuration */
     NIDAQ::float64 getSampleRate() { return sampleRates[sampleRateIndex]; };
     void setSampleRate (int index) { sampleRateIndex = index; };
 
-    SettingsRange getVoltageRange() { return device->voltageRanges[voltageRangeIndex]; };
+    SettingsRange getVoltageRange() { return devices[0]->voltageRanges[voltageRangeIndex]; };
     void setVoltageRange (int index) { voltageRangeIndex = index; };
 
     SOURCE_TYPE getSourceTypeForInput (int analogIntputIndex) { return ai[analogIntputIndex]->getSourceType(); };
     void toggleSourceType (int analogInputIndex) { ai[analogInputIndex]->setNextSourceType(); }
 
-    void setNumActiveAnalogInputs (int numActiveAnalogInputs_) { numActiveAnalogInputs = numActiveAnalogInputs_; };
+    void setNumActiveAnalogInputs (int numActiveAnalogInputs_) { numActiveAnalogInputs = 8; };
     int getNumActiveAnalogInputs() { return numActiveAnalogInputs; };
 
     /*Digital configuration */
@@ -209,9 +210,9 @@ public:
     /* 32-bit mask indicating which lines are currently enabled */
     uint32 getActiveDigitalLines();
 
-    int getNumPorts() { return device->digitalPortNames.size(); };
-    bool getPortState (int idx) { return device->digitalPortStates[idx]; };
-    void setPortState (int idx, bool state) { device->digitalPortStates.set (idx, state); };
+    int getNumPorts() { return devices[0]->digitalPortNames.size(); };
+    bool getPortState (int idx) { return devices[0]->digitalPortStates[idx]; };
+    void setPortState (int idx, bool state) { devices[0]->digitalPortStates.set (idx, state); };
 
     void run();
 

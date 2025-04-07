@@ -199,6 +199,7 @@ int AIButton::getId()
 void AIButton::setEnabled (bool enable)
 {
     enabled = enable;
+    LOGD(thread->mNIDAQ->ai.size());
     thread->mNIDAQ->ai[id]->setEnabled (enabled);
 }
 

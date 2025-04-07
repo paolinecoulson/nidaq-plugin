@@ -91,25 +91,25 @@ public:
                          OwnedArray<DeviceInfo>* devices,
                          OwnedArray<ConfigurationObject>* configurationObjects) override;
 
-    String getDeviceName() const { return mNIDAQ->device->getName(); };
-    String getProductName() const { return mNIDAQ->device->productName; };
+    String getDeviceName(int index=0) const { return mNIDAQ->devices[index]->getName(); };
+    String getProductName(int index=0) const { return mNIDAQ->devices[index]->productName; };
 
     void updateAnalogChannels();
     void updateDigitalChannels();
 
     // Returns total number of available analog inputs on device
-    int getTotalAvailableAnalogInputs() { return mNIDAQ->device->numAIChannels; };
+    int getTotalAvailableAnalogInputs() { return 32; };
 
     // Returns total number of available digital inputs on device
-    int getTotalAvailableDigitalInputs() { return mNIDAQ->device->numDIChannels; };
+    int getTotalAvailableDigitalInputs() { return 8; };
     //int getDigitalReadSize() const { return mNIDAQ->device->getDigitalReadSize(); };
 
     // Returns number of currently active analog inputs
-    int getNumActiveAnalogInputs() { return mNIDAQ->getNumActiveAnalogInputs(); };
+    int getNumActiveAnalogInputs() { return mNIDAQ->getNumActiveAnalogInputs()*mNIDAQ->devices.size(); };
     void setNumActiveAnalogChannels (int numChannels) { mNIDAQ->setNumActiveAnalogInputs (numChannels); };
 
     // Returns number of currently active digital inputs
-    int getNumActiveDigitalInputs() { return mNIDAQ->getNumActiveDigitalInputs(); };
+    int getNumActiveDigitalInputs() { return mNIDAQ->getNumActiveDigitalInputs()*mNIDAQ->devices.size(); };
     void setNumActiveDigitalChannels (int numChannels) { mNIDAQ->setNumActiveDigitalInputs (numChannels); };
 
     // Returns size of current digital read setting

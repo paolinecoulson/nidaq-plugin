@@ -175,7 +175,7 @@ Array<NIDAQDevice*> NIDAQThread::getDevices()
 
 int NIDAQThread::openConnection()
 {
-    mNIDAQ = new NIDAQmx (dm->getDeviceAtIndex (0));
+    mNIDAQ = new NIDAQmx (getDevices());
 
     sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs(), 10000));
 
@@ -198,7 +198,7 @@ int NIDAQThread::openConnection()
 
     setSampleRate (sampleRateIndex);
 
-    voltageRangeIndex = mNIDAQ->device->voltageRanges.size() - 1;
+    voltageRangeIndex = mNIDAQ->voltageRangeIndex;
     setVoltageRange (voltageRangeIndex);
 
     return 0;
@@ -208,10 +208,10 @@ void NIDAQThread::selectFromAvailableDevices()
 {
     PopupMenu deviceSelect;
     StringArray productNames;
-
+    LOGD("try to get product name");
     for (int i = 0; i < getNumAvailableDevices(); i++)
     {
-        String productName = dm->getDeviceAtIndex (i)->productName;
+        String productName =  mNIDAQ->devices[i]->productName;
         if (! (productName == getProductName()))
         {
             productNames.add (productName);
@@ -262,14 +262,14 @@ void NIDAQThread::updateDigitalChannels()
 int NIDAQThread::swapConnection (String deviceName)
 {
     int deviceIdx = -1;
-
+    mNIDAQ = new NIDAQmx (getDevices());
     for (auto& dev : getDevices())
     {
         deviceIdx++;
 
         if (dev->getName() == deviceName)
         {
-            mNIDAQ = new NIDAQmx (dev);
+            
 
             sourceBuffers.removeLast();
             sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs(), 10000));
@@ -281,7 +281,7 @@ int NIDAQThread::swapConnection (String deviceName)
             sampleRateIndex = mNIDAQ->sampleRates.size() - 1;
             setSampleRate (sampleRateIndex);
 
-            voltageRangeIndex = mNIDAQ->device->voltageRanges.size() - 1;
+            voltageRangeIndex = mNIDAQ->devices[0]->voltageRanges.size() - 1;
             setVoltageRange (voltageRangeIndex);
 
             sourceStreams.clear();
@@ -345,7 +345,7 @@ float NIDAQThread::getSampleRate()
 
 Array<SettingsRange> NIDAQThread::getVoltageRanges()
 {
-    return mNIDAQ->device->voltageRanges;
+    return mNIDAQ->devices[0]->voltageRanges;
 }
 
 Array<NIDAQ::float64> NIDAQThread::getSampleRates()
