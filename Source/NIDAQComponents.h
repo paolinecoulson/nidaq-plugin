@@ -40,9 +40,9 @@
 
 #define PORT_SIZE 32
 
-#define NUM_SOURCE_TYPES 4
+#define NUM_SOURCE_TYPES 3
 #define NUM_SAMPLE_RATES 19
-#define CHANNEL_BUFFER_SIZE 500
+#define CHANNEL_BUFFER_SIZE 32
 #define ERR_BUFF_SIZE 2048
 
 #define STR2CHR(jString) ((jString).toUTF8())
