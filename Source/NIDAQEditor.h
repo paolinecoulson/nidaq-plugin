@@ -55,86 +55,6 @@ private:
     int nDI;
 };
 
-class AIButton : public ToggleButton, public Timer
-{
-public:
-    AIButton (int id, NIDAQThread* thread);
-
-    void setId (int id);
-    int getId();
-    void setEnabled (bool);
-    void timerCallback();
-
-    NIDAQThread* thread;
-
-    friend class NIDAQEditor;
-
-private:
-    void paintButton (Graphics& g, bool isMouseOver, bool isButtonDown);
-
-    int id;
-    bool enabled;
-};
-
-class DIButton : public ToggleButton, public Timer
-{
-public:
-    DIButton (int id, NIDAQThread* thread);
-
-    void setId (int id);
-    int getId();
-    void setEnabled (bool);
-    void timerCallback();
-
-    NIDAQThread* thread;
-
-    friend class NIDAQEditor;
-
-private:
-    void paintButton (Graphics& g, bool isMouseOver, bool isButtonDown);
-
-    int id;
-    bool enabled;
-};
-
-class SourceTypeButton : public TextButton, public Timer
-{
-public:
-    SourceTypeButton (int id, NIDAQThread* thread, SOURCE_TYPE source);
-
-    void setId (int id);
-    int getId();
-    void toggleSourceType();
-    void timerCallback();
-
-    void update (SOURCE_TYPE sourceType);
-
-    NIDAQThread* thread;
-
-    friend class NIDAQEditor;
-
-private:
-    int id;
-    bool enabled;
-};
-
-class FifoMonitor : public Component, public Timer
-{
-public:
-    FifoMonitor (NIDAQThread* thread);
-
-    void setFillPercentage (float percentage);
-
-    void timerCallback();
-
-private:
-    void paint (Graphics& g);
-
-    float fillPercentage;
-    NIDAQThread* thread;
-    int id;
-};
-
 class BackgroundLoader : public Thread
 {
 public:
@@ -214,15 +134,9 @@ public:
     void setPortState (int idx, bool state) { thread->setPortState (idx, state); };
 
 private:
-    OwnedArray<AIButton> aiButtons;
-    OwnedArray<TextButton> sourceTypeButtons;
-    OwnedArray<DIButton> diButtons;
 
-    ScopedPointer<ComboBox> deviceSelectBox;
     ScopedPointer<ComboBox> sampleRateSelectBox;
     ScopedPointer<ComboBox> voltageRangeSelectBox;
-    ScopedPointer<FifoMonitor> fifoMonitor;
-
     ScopedPointer<UtilityButton> configureDeviceButton;
 
     Array<File> savingDirectories;

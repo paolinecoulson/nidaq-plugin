@@ -28,300 +28,13 @@ EditorBackground::EditorBackground (int nAI, int nDI) : nAI (nAI), nDI (nDI) {}
 
 void EditorBackground::paint (Graphics& g)
 {
-    if (nAI > 0 || nDI > 0)
-    {
-        /* Draw AI channels */
-        int maxChannelsPerColumn = 4;
-        int aiChannelsPerColumn = nAI > 0 && nAI < maxChannelsPerColumn ? nAI : maxChannelsPerColumn;
-        int diChannelsPerColumn = nDI > 0 && nDI < maxChannelsPerColumn ? nDI : maxChannelsPerColumn;
 
-        float aiChanOffsetX = 15; //pixels
-        float aiChanOffsetY = 12; //pixels
-        float aiChanWidth = 80; //pixels
-        float aiChanHeight = 22; //pixels TODO: normalize
-        float paddingX = 1.07;
-        float paddingY = 1.18;
+   float settingsOffsetX = 10;
+   g.setColour (findColour (ThemeColours::defaultText));
+   g.setFont (10);
 
-        for (int i = 0; i < nAI; i++)
-        {
-            int colIndex = i / aiChannelsPerColumn;
-            int rowIndex = i % aiChannelsPerColumn;
-
-            g.setColour (findColour (ThemeColours::outline));
-            g.drawRoundedRectangle (
-                aiChanOffsetX + paddingX * colIndex * aiChanWidth,
-                aiChanOffsetY + paddingY * rowIndex * aiChanHeight,
-                aiChanWidth,
-                aiChanHeight,
-                4,
-                1);
-
-            g.setColour (findColour (ThemeColours::outline));
-
-            g.drawRoundedRectangle (
-                aiChanOffsetX + paddingX * colIndex * aiChanWidth,
-                aiChanOffsetY + paddingY * rowIndex * aiChanHeight,
-                aiChanWidth,
-                aiChanHeight,
-                4,
-                1);
-
-            /*
-			g.drawRoundedRectangle(
-			aiChanOffsetX + colIndex * paddingX * aiChanWidth + aiChanWidth - aiChanWidth / 3,
-			16 + paddingY * aiChanHeight * rowIndex,
-			aiChanWidth / 3 - 4, 14, 1, 0.4);
-			*/
-
-            g.setColour (findColour (ThemeColours::defaultText));
-            g.setFont (10);
-            g.drawText (
-                String ("AI") + String (i),
-                5 + aiChanOffsetX + paddingX * colIndex * aiChanWidth,
-                7 + aiChanOffsetY + paddingY * rowIndex * aiChanHeight,
-                20,
-                10,
-                Justification::centredLeft);
-
-            /*
-			g.drawText(String("FS"),
-			51 + aiChanOffsetX + paddingX * colIndex * aiChanWidth,
-			7 + aiChanOffsetY + paddingY * rowIndex * aiChanHeight,
-			20, 10, Justification::centredLeft);
-			*/
-        }
-
-        /* Draw DI lines */
-        float diChanOffsetX = aiChanOffsetX + ((nAI % maxChannelsPerColumn == 0 ? 0 : 1) + nAI / aiChannelsPerColumn) * paddingX * aiChanWidth;
-        float diChanOffsetY = aiChanOffsetY;
-        float diChanWidth = 42;
-        float diChanHeight = 22;
-
-        for (int i = 0; i < nDI; i++)
-        {
-            int colIndex = i / diChannelsPerColumn;
-            int rowIndex = i % diChannelsPerColumn;
-
-            g.setColour (findColour (ThemeColours::outline));
-            g.drawRoundedRectangle (
-                diChanOffsetX + paddingX * colIndex * diChanWidth,
-                diChanOffsetY + paddingY * rowIndex * diChanHeight,
-                diChanWidth,
-                diChanHeight,
-                4,
-                1);
-
-            g.setColour (findColour (ThemeColours::outline));
-            g.drawRoundedRectangle (
-                diChanOffsetX + paddingX * colIndex * diChanWidth,
-                diChanOffsetY + paddingY * rowIndex * diChanHeight,
-                diChanWidth,
-                diChanHeight,
-                4,
-                1);
-
-            g.setColour (findColour (ThemeColours::defaultText));
-            g.setFont (10);
-            if (i >= 10)
-                g.setFont (8);
-            g.drawText (
-                "DI" + String (i),
-                5 + diChanOffsetX + paddingX * colIndex * diChanWidth,
-                7 + diChanOffsetY + paddingY * rowIndex * diChanHeight,
-                20,
-                10,
-                Justification::centredLeft);
-        }
-
-        //FIFO monitor label
-        float settingsOffsetX = diChanOffsetX + ((nDI % maxChannelsPerColumn == 0 ? 0 : 1) + nDI / diChannelsPerColumn) * paddingX * diChanWidth + 5;
-        g.setColour (findColour (ThemeColours::defaultText));
-        g.setFont (10);
-
-        g.drawText (String ("DEVICE"), settingsOffsetX, 13, 100, 10, Justification::centredLeft);
-        g.drawText (String ("SAMPLE RATE"), settingsOffsetX, 47, 100, 10, Justification::centredLeft);
-        g.drawText (String ("AI VOLTAGE RANGE"), settingsOffsetX, 80, 100, 10, Justification::centredLeft);
-
-        /*
-		g.drawText(String("USAGE"), settingsOffsetX, 77, 100, 10, Justification::centredLeft);
-		g.setFont(8);
-		g.drawText(String("0"), settingsOffsetX, 100, 50, 10, Justification::centredLeft);
-		g.drawText(String("100"), settingsOffsetX + 65, 100, 50, 10, Justification::centredLeft);
-		g.drawText(String("%"), settingsOffsetX + 33, 100, 50, 10, Justification::centredLeft);
-		*/
-    }
-}
-
-FifoMonitor::FifoMonitor (NIDAQThread* thread_) : thread (thread_), fillPercentage (0.0)
-{
-    startTimer (500); // update fill percentage every 0.5 seconds
-}
-
-void FifoMonitor::timerCallback()
-{
-    //TODO:
-}
-
-void FifoMonitor::setFillPercentage (float fill_)
-{
-    fillPercentage = fill_;
-
-    repaint();
-}
-
-void FifoMonitor::paint (Graphics& g)
-{
-    g.setColour (Colours::grey);
-    g.fillRoundedRectangle (0, 0, this->getWidth(), this->getHeight(), 4);
-    g.setColour (Colours::lightslategrey);
-    g.fillRoundedRectangle (2, 2, this->getWidth() - 4, this->getHeight() - 4, 2);
-
-    g.setColour (Colours::yellow);
-    float barHeight = (this->getHeight() - 4) * fillPercentage;
-    g.fillRoundedRectangle (2, this->getHeight() - 2 - barHeight, this->getWidth() - 4, barHeight, 2);
-}
-
-AIButton::AIButton (int id_, NIDAQThread* thread_) : id (id_), thread (thread_), enabled (true)
-{
-    startTimer (500);
-}
-
-void AIButton::setId (int id_)
-{
-    id = id_;
-}
-
-int AIButton::getId()
-{
-    return id;
-}
-
-void AIButton::setEnabled (bool enable)
-{
-    enabled = enable;
-    LOGD(thread->mNIDAQ->ai.size());
-    thread->mNIDAQ->ai[id]->setEnabled (enabled);
-}
-
-void AIButton::paintButton (Graphics& g, bool isMouseOver, bool isButtonDown)
-{
-    if (isMouseOver && enabled)
-        g.setColour (Colours::antiquewhite);
-    else
-        g.setColour (Colours::darkgrey);
-    g.fillEllipse (0, 0, 15, 15);
-
-    if (enabled && thread->inputAvailable)
-    {
-        if (isMouseOver)
-            g.setColour (Colours::lightgreen);
-        else
-            g.setColour (Colours::forestgreen);
-    }
-    else
-    {
-        if (isMouseOver)
-            g.setColour (Colours::lightgrey);
-        else
-            g.setColour (Colours::lightgrey);
-    }
-    g.fillEllipse (3, 3, 9, 9);
-}
-
-void AIButton::timerCallback()
-{
-}
-
-DIButton::DIButton (int id_, NIDAQThread* thread_) : id (id_), thread (thread_), enabled (true)
-{
-    startTimer (500);
-}
-
-void DIButton::setId (int id_)
-{
-    id = id_;
-}
-
-int DIButton::getId()
-{
-    return id;
-}
-
-void DIButton::setEnabled (bool enable)
-{
-    enabled = enable;
-    thread->mNIDAQ->di[id]->setEnabled (enabled);
-}
-
-void DIButton::paintButton (Graphics& g, bool isMouseOver, bool isButtonDown)
-{
-    if (isMouseOver && enabled)
-        g.setColour (Colours::antiquewhite);
-    else
-        g.setColour (Colours::darkgrey);
-    g.fillRoundedRectangle (0, 0, 15, 15, 2);
-
-    if (enabled && thread->inputAvailable)
-    {
-        if (isMouseOver)
-            g.setColour (Colours::lightgreen);
-        else
-            g.setColour (Colours::forestgreen);
-    }
-    else
-    {
-        if (isMouseOver)
-            g.setColour (Colours::lightgrey);
-        else
-            g.setColour (Colours::lightgrey);
-    }
-    g.fillRoundedRectangle (3, 3, 9, 9, 2);
-}
-
-void DIButton::timerCallback()
-{
-}
-
-SourceTypeButton::SourceTypeButton (int id_, NIDAQThread* thread_, SOURCE_TYPE source) : id (id_), thread (thread_)
-{
-    update (source);
-}
-
-void SourceTypeButton::setId (int id_)
-{
-    id = id_;
-}
-
-int SourceTypeButton::getId()
-{
-    return id;
-}
-
-void SourceTypeButton::update (SOURCE_TYPE sourceType)
-{
-    switch (sourceType)
-    {
-        case SOURCE_TYPE::RSE:
-            setButtonText ("RSE");
-            return;
-        case SOURCE_TYPE::NRSE:
-            setButtonText ("NRSE");
-            return;
-        case SOURCE_TYPE::DIFF:
-            setButtonText ("DIFF");
-            return;
-        case SOURCE_TYPE::PSEUDO_DIFF:
-            setButtonText ("PDIF");
-            return;
-        default:
-            break;
-    }
-
-    changeWidthToFitText();
-}
-
-void SourceTypeButton::timerCallback()
-{
+   g.drawText (String ("SAMPLE RATE"), settingsOffsetX, 47, 100, 10, Justification::centredLeft);
+   g.drawText (String ("AI VOLTAGE RANGE"), settingsOffsetX, 80, 100, 10, Justification::centredLeft);
 }
 
 BackgroundLoader::BackgroundLoader (NIDAQThread* thread, NIDAQEditor* editor)
@@ -371,71 +84,8 @@ void NIDAQEditor::draw()
     int aiChannelsPerColumn = nAI > 0 && nAI < maxChannelsPerColumn ? nAI : maxChannelsPerColumn;
     int diChannelsPerColumn = nDI > 0 && nDI < maxChannelsPerColumn ? nDI : maxChannelsPerColumn;
 
-    aiButtons.clear();
-    sourceTypeButtons.clear();
+    int xOffset = 100;
 
-    int xOffset = 0;
-
-    // Draw analog inputs
-    for (int i = 0; i < nAI; i++)
-    {
-        int colIndex = i / aiChannelsPerColumn;
-        int rowIndex = i % aiChannelsPerColumn + 1;
-        xOffset = colIndex * 86 + 40;
-        int y_pos = 4 + rowIndex * 26;
-
-        AIButton* a = new AIButton (i, thread);
-        a->setBounds (xOffset, y_pos, 15, 15);
-        a->addListener (this);
-        addAndMakeVisible (a);
-        aiButtons.add (a);
-
-        SOURCE_TYPE sourceType = SOURCE_TYPE::RSE;
-        if (thread->foundInputSource())
-            sourceType = thread->getSourceTypeForInput (i);
-
-        SourceTypeButton* b = new SourceTypeButton (i, thread, sourceType);
-        b->setBounds (xOffset + 17, y_pos - 1, 32, 17);
-        b->changeWidthToFitText();
-        b->addListener (this);
-        b->setEnabled (thread->foundInputSource());
-        addAndMakeVisible (b);
-        sourceTypeButtons.add (b);
-    }
-
-    diButtons.clear();
-
-    // Draw digital inputs
-    for (int i = 0; i < nDI; i++)
-    {
-        int colIndex = i / diChannelsPerColumn;
-        int rowIndex = i % diChannelsPerColumn + 1;
-        xOffset = ((nAI % maxChannelsPerColumn == 0 ? 0 : 1) + nAI / aiChannelsPerColumn) * 86 + 38 + colIndex * 45;
-        int y_pos = 5 + rowIndex * 26;
-
-        DIButton* b = new DIButton (i, thread);
-        b->setBounds (xOffset, y_pos, 15, 15);
-        b->addListener (this);
-        //b->setEnabled(thread->foundInputSource());
-        addAndMakeVisible (b);
-        diButtons.add (b);
-    }
-
-    xOffset = xOffset + 25 + 30 * (nDI == 0);
-
-    deviceSelectBox = new ComboBox ("DeviceSelectBox");
-    deviceSelectBox->setBounds (xOffset, 39, 85, 20);
-    Array<NIDAQDevice*> devices = t->getDevices();
-    for (int i = 0; i < t->getNumAvailableDevices(); i++)
-    {
-        deviceSelectBox->addItem (devices[i]->productName + " Slot " + std::to_string(devices[i]->slotNbr), i + 1);
-    }
-    deviceSelectBox->setSelectedItemIndex (t->getDeviceIndex(), false);
-    deviceSelectBox->addListener (this);
-    addAndMakeVisible (deviceSelectBox);
-
-    if (t->getNumAvailableDevices() == 1) // disable device selection if only one device is available
-        deviceSelectBox->setEnabled (false);
 
     sampleRateSelectBox = new ComboBox ("SampleRateSelectBox");
     sampleRateSelectBox->setBounds (xOffset, 72, 85, 20);
@@ -453,17 +103,12 @@ void NIDAQEditor::draw()
     Array<SettingsRange> voltageRanges = t->getVoltageRanges();
     for (int i = 0; i < voltageRanges.size(); i++)
     {
-        //String rangeString = String(voltageRanges[i].min) + " - " + String(voltageRanges[i].max) + " V";
         String rangeString = String (voltageRanges[i].min) + " to " + String (voltageRanges[i].max) + " V";
         voltageRangeSelectBox->addItem (rangeString, i + 1);
     }
     voltageRangeSelectBox->setSelectedItemIndex (t->getVoltageRangeIndex(), false);
     voltageRangeSelectBox->addListener (this);
     addAndMakeVisible (voltageRangeSelectBox);
-
-    fifoMonitor = new FifoMonitor (thread);
-    fifoMonitor->setBounds (xOffset + 2, 105, 70, 12);
-    //addAndMakeVisible(fifoMonitor);
 
     configureDeviceButton = new UtilityButton ("...");
     configureDeviceButton->setFont (FontOptions ((12.0f)));
@@ -518,12 +163,6 @@ NIDAQEditor::~NIDAQEditor()
 
 void NIDAQEditor::startAcquisition()
 {
-    //Disable all source type buttons
-    for (auto& button : sourceTypeButtons)
-        button->setEnabled (false);
-
-    //Disable all combo boxes
-    deviceSelectBox->setEnabled (false);
     sampleRateSelectBox->setEnabled (false);
     voltageRangeSelectBox->setEnabled (false);
 
@@ -533,12 +172,7 @@ void NIDAQEditor::startAcquisition()
 
 void NIDAQEditor::stopAcquisition()
 {
-    //Enable all source type buttons
-    for (auto& button : sourceTypeButtons)
-        button->setEnabled (true);
-
-    //Enable all combo boxes
-    deviceSelectBox->setEnabled (true);
+    //deviceSelectBox->setEnabled (true);
     sampleRateSelectBox->setEnabled (true);
     voltageRangeSelectBox->setEnabled (true);
 
@@ -556,22 +190,7 @@ void NIDAQEditor::buttonClicked (Button* button)
 
 void NIDAQEditor::comboBoxChanged (ComboBox* comboBox)
 {
-    if (comboBox == deviceSelectBox)
-    {
-        if (! thread->isThreadRunning())
-        {
-            if (comboBox->getSelectedId() - 1 != thread->getDeviceIndex())
-            {
-                thread->swapConnection (thread->getDevices()[comboBox->getSelectedId() - 1]->getName());
-                draw();
-            }
-        }
-        else
-        {
-            comboBox->setSelectedItemIndex (thread->getDeviceIndex());
-        }
-    }
-    else if (comboBox == sampleRateSelectBox)
+    if (comboBox == sampleRateSelectBox)
     {
         if (! thread->isThreadRunning())
         {
@@ -599,25 +218,7 @@ void NIDAQEditor::comboBoxChanged (ComboBox* comboBox)
 
 void NIDAQEditor::buttonEvent (Button* button)
 {
-    if (aiButtons.contains ((AIButton*) button))
-    {
-        ((AIButton*) button)->setEnabled (thread->toggleAIChannel (((AIButton*) button)->getId()));
-        repaint();
-    }
-    else if (diButtons.contains ((DIButton*) button))
-    {
-        ((DIButton*) button)->setEnabled (thread->toggleDIChannel (((DIButton*) button)->getId()));
-        repaint();
-    }
-    else if (sourceTypeButtons.contains ((SourceTypeButton*) button))
-    {
-        int currentButtonId = ((SourceTypeButton*) button)->getId();
-        thread->toggleSourceType (currentButtonId);
-        SOURCE_TYPE next = thread->getSourceTypeForInput (currentButtonId);
-        ((SourceTypeButton*) button)->update (next);
-        repaint();
-    }
-    else if (button == configureDeviceButton)
+     if (button == configureDeviceButton)
     {
         if (! thread->isThreadRunning())
         {
@@ -661,7 +262,7 @@ void NIDAQEditor::loadCustomParametersFromXml (XmlElement* xml)
         if (deviceIdx >= 0)
         {
             thread->setDeviceIndex (deviceIdx);
-            deviceSelectBox->setSelectedItemIndex (thread->getDeviceIndex(), false);
+            //deviceSelectBox->setSelectedItemIndex (thread->getDeviceIndex(), false);
             draw();
         }
     }

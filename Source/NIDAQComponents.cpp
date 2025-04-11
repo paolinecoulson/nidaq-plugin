@@ -153,7 +153,6 @@ void NIDAQmx::connect(int index)
 
     if (deviceName == "Simulated")
     {
-        device->isUSBDevice = false;
         device->sampleRateRange = SettingsRange (1000.0f, 30000.0f);
         device->voltageRanges.add (SettingsRange (-10.0f, 10.0f));
         device->productName = String ("No Device Detected");
@@ -164,9 +163,7 @@ void NIDAQmx::connect(int index)
         NIDAQ::DAQmxGetDevProductCategory (STR2CHR (deviceName), &device->deviceCategory);
         LOGD ("Product Category: ", device->deviceCategory);
 
-        device->isUSBDevice = device->productName.contains ("USB");
-
-        device->digitalReadSize = device->isUSBDevice ? 32 : 8;
+        device->digitalReadSize = 32;
 
         NIDAQ::DAQmxGetDevProductNum (STR2CHR (deviceName), &device->productNum);
         LOGD ("Product Num: ", device->productNum);
@@ -391,33 +388,17 @@ void NIDAQmx::run()
     /* Create an analog input task */
     for(int dev_i=0; dev_i < devices.size(); dev_i++){
         NIDAQ::TaskHandle taskHandleAI = 0;
-        if (devices[dev_i]->isUSBDevice)
-            DAQmxErrChk (NIDAQ::DAQmxCreateTask (STR2CHR ("AITask_USB" + getSlotNumber(dev_i)), &taskHandleAI));
-        else
-            DAQmxErrChk (NIDAQ::DAQmxCreateTask (STR2CHR ("AITask_PXI" + getSlotNumber(dev_i)), &taskHandleAI));
+        DAQmxErrChk (NIDAQ::DAQmxCreateTask (STR2CHR ("AITask_PXI" + getSlotNumber(dev_i)), &taskHandleAI));
     
         /* Create a voltage channel for each analog input */
 
         for (int i = 0; i < numActiveAnalogInputs; i++)
         {
-            NIDAQ::int32 termConfig;
-
-            switch (ai[dev_i*numActiveAnalogInputs + i]->getSourceType())
-            {
-                case SOURCE_TYPE::RSE:
-                    termConfig = DAQmx_Val_RSE;
-                case SOURCE_TYPE::NRSE:
-                    termConfig = DAQmx_Val_NRSE;
-                case SOURCE_TYPE::DIFF:
-                    termConfig = DAQmx_Val_Diff;
-                case SOURCE_TYPE::PSEUDO_DIFF:
-                    termConfig = DAQmx_Val_PseudoDiff;
-                default:
-                    termConfig = DAQmx_Val_Cfg_Default;
-            }
+            NIDAQ::int32 termConfig = DAQmx_Val_Diff;
 
             SettingsRange voltageRange = devices[dev_i]->voltageRanges[voltageRangeIndex];
-            LOGD(ai[dev_i*numActiveAnalogInputs + i]->getName())
+            LOGD (ai[dev_i * numActiveAnalogInputs + i]->getName());
+
             DAQmxErrChk (NIDAQ::DAQmxCreateAIVoltageChan (
                 taskHandleAI, // task handle
                 STR2CHR (ai[dev_i*numActiveAnalogInputs + i]->getName()), // NIDAQ physical channel name (e.g. dev1/ai1)
@@ -428,9 +409,6 @@ void NIDAQmx::run()
                 DAQmx_Val_Volts, // voltage units
                 NULL));
         }
-
-
-            // --- 2. Timing Configuration ---
 
         // Master: internal clock
         if (dev_i == 0){
@@ -447,8 +425,6 @@ void NIDAQmx::run()
             DAQmxErrChk(NIDAQ::DAQmxExportSignal(taskHandleAI,
                 DAQmx_Val_SampleClock,
                 trigName));
-
-
         }
         else
         {
@@ -462,14 +438,11 @@ void NIDAQmx::run()
         }
     
         taskHandlesAI.push_back (taskHandleAI);
-        LOGD ("Is USB Device: ", devices[dev_i]->isUSBDevice);
 
         /************************************/
         /********CONFIG DIGITAL LINES********/
         /************************************/
-        // TODO : create task to write for device on slot 2,3,4,5 using port0/line0-7 
-        // + synchronize on the clock
-        // Task to read on the slot 6 port0/line23 --> read the start pulse because connected to slot 2 port0/Line0
+
         if (getSlotNumber(dev_i) == "2" || getSlotNumber(dev_i) == "3" || getSlotNumber(dev_i) == "4" || getSlotNumber(dev_i) == "5"){
             NIDAQ::TaskHandle taskHandleDI = 0;
     
@@ -505,8 +478,6 @@ void NIDAQmx::run()
         
     }
 
-
-
     const int numStations = taskHandlesDI.size();
     const int numLinesPerStation = 8;
     const int pulseLengthInSamples = 1; 
@@ -537,7 +508,7 @@ void NIDAQmx::run()
         DAQmxErrChk(NIDAQ::DAQmxWriteDigitalU32(
             taskHandlesDI[station_i],
             totalSamples,
-            0,                      // autoStart = false
+            0,                          // autoStart = false
             timeout,                   // timeout
             DAQmx_Val_GroupByChannel,
             waveform.data(),
@@ -585,6 +556,8 @@ void NIDAQmx::run()
     LOGD ("Start acquisition");
     int digital_line_index  = 0;
 
+    int arraySizeInSamps = numActiveAnalogInputs * numSampsPerChan;
+
     while (! threadShouldExit())
     {   
         // start the thread to write on the digital line one pulse after each other with a duration of 1ms
@@ -593,10 +566,8 @@ void NIDAQmx::run()
         
 
         for (int dev_i = 0; dev_i < numDevices; dev_i++) {
-            if (devices[dev_i]->isUSBDevice)
-                numSampsPerChan = 100;
 
-            int arraySizeInSamps = numActiveAnalogInputs * numSampsPerChan;
+            
 
             if (numActiveAnalogInputs) {
                 dev_ai_data[dev_i].resize(arraySizeInSamps);
@@ -605,12 +576,11 @@ void NIDAQmx::run()
                     taskHandlesAI[dev_i],
                     numSampsPerChan,
                     timeout,
-                    DAQmx_Val_GroupByScanNumber,
+                    DAQmx_Val_GroupByChannel,
                     dev_ai_data[dev_i].data(),
                     arraySizeInSamps,
                     &ai_read,
                     NULL));  
-
             }
         }
 
@@ -633,29 +603,29 @@ void NIDAQmx::run()
 
         int totalChannels = numActiveAnalogInputs * numDevices;
         int totalScans = numSampsPerChan; 
-        float aiSamples[1024];
+        //float aiSamples[3500];
         int count = 0;
+        int scanIdx = 0;
+        int nbr_channel = numActiveAnalogInputs*numDevices*32;
 
-        for (int scanIdx = 0; scanIdx < totalScans; scanIdx++) {
-            int sampleIdx = 0;
 
-            // Build one full scan across all devices
-            for (int dev_i = 0; dev_i < numDevices; dev_i++) {
-                for (int ch = 0; ch < numActiveAnalogInputs; ch++) {
-                    int idx = scanIdx * numActiveAnalogInputs + ch;
-                    float val = dev_ai_data[dev_i][idx];
-                    aiSamples[sampleIdx] = ai[ch]->isEnabled() ? val : 0;
-                    sampleIdx++;
-                }
+        HeapBlock<float> output;
+        output.allocate(nbr_channel, true);
+        
+        
+        int writeIdx = 0;
+        for (int station = 0; station < numDevices; ++station) {
+            for (int ch = 0; ch < numActiveDigitalInputs*numActiveAnalogInputs; ++ch) {
+                    output[writeIdx++] = dev_ai_data[station][ch];  // step per sample
+                
             }
+        }
 
-            juce::uint64 eventCode = dev_di_data[scanIdx];
-            // Update timestamp
-            ai_timestamp++;
-            
-            // Now add the full scan (all devices) to the buffer
-            aiBuffer->addToBuffer (aiSamples, &ai_timestamp, &ts, &eventCode, 1);
-    }
+        juce::uint64 eventCode = 0;
+        // Update timestamp
+        ai_timestamp++;
+        // Now add the full scan (all devices) to the buffer
+        aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
 
     }
         // fflush(stdout);

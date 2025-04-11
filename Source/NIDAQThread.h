@@ -98,10 +98,10 @@ public:
     void updateDigitalChannels();
 
     // Returns total number of available analog inputs on device
-    int getTotalAvailableAnalogInputs() { return 32; };
+    int getTotalAvailableAnalogInputs() { return 32*mNIDAQ->devices.size(); };
 
     // Returns total number of available digital inputs on device
-    int getTotalAvailableDigitalInputs() { return 8; };
+    int getTotalAvailableDigitalInputs() { return 8*mNIDAQ->devices.size(); };
     //int getDigitalReadSize() const { return mNIDAQ->device->getDigitalReadSize(); };
 
     // Returns number of currently active analog inputs
@@ -109,7 +109,7 @@ public:
     void setNumActiveAnalogChannels (int numChannels) { mNIDAQ->setNumActiveAnalogInputs (numChannels); };
 
     // Returns number of currently active digital inputs
-    int getNumActiveDigitalInputs() { return mNIDAQ->getNumActiveDigitalInputs()*mNIDAQ->devices.size(); };
+    int getNumActiveDigitalInputs() { return 32; };
     void setNumActiveDigitalChannels (int numChannels) { mNIDAQ->setNumActiveDigitalInputs (numChannels); };
 
     // Returns size of current digital read setting

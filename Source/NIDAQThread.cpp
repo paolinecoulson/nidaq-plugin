@@ -127,13 +127,11 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
 
         currentStream->clearChannels();
 
-        for (int ch = 0; ch < getNumActiveAnalogInputs(); ch++)
+        for (int ch = 0; ch < getNumActiveAnalogInputs()*getNumActiveDigitalInputs(); ch++)
         {
-            if (mNIDAQ->ai[ch]->isEnabled())
-            {
-                float bitVolts = mNIDAQ->getVoltageRange().max / float (0x7fff);
+            float bitVolts = mNIDAQ->getVoltageRange().max / float (0x7fff);
 
-                ContinuousChannel::Settings settings {
+            ContinuousChannel::Settings settings {
                     ContinuousChannel::Type::ADC,
                     "AI" + String (ch),
                     "Analog Input channel from a NIDAQ device",
@@ -142,10 +140,9 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
                     bitVolts,
 
                     currentStream
-                };
+           };
 
-                continuousChannels->add (new ContinuousChannel (settings));
-            }
+           continuousChannels->add (new ContinuousChannel (settings));
         }
 
         EventChannel::Settings settings {
@@ -176,8 +173,7 @@ Array<NIDAQDevice*> NIDAQThread::getDevices()
 int NIDAQThread::openConnection()
 {
     mNIDAQ = new NIDAQmx (getDevices());
-
-    sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs(), 10000));
+    sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs()*getNumActiveDigitalInputs(), 10000));
 
     mNIDAQ->aiBuffer = sourceBuffers.getLast();
 
@@ -185,7 +181,7 @@ int NIDAQThread::openConnection()
 
     for (int i = 0; i < mNIDAQ->sampleRates.size(); i++)
     {
-        if (mNIDAQ->sampleRates[i] == 30000.0) // default to 30 kHz
+        if (mNIDAQ->sampleRates[i] == 62500.0) 
         {
             sampleRateIndex = i;
             break;
@@ -238,7 +234,7 @@ void NIDAQThread::selectFromAvailableDevices()
 void NIDAQThread::updateAnalogChannels()
 {
     sourceBuffers.removeLast();
-    sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs(), 10000));
+    sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs()*getNumActiveDigitalInputs(), 10000));
     mNIDAQ->aiBuffer = sourceBuffers.getLast();
 
     for (auto& channel : mNIDAQ->ai)
@@ -272,7 +268,8 @@ int NIDAQThread::swapConnection (String deviceName)
             
 
             sourceBuffers.removeLast();
-            sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs(), 10000));
+
+            sourceBuffers.add (new DataBuffer (getNumActiveAnalogInputs()*getNumActiveDigitalInputs(), 10000));
             mNIDAQ->aiBuffer = sourceBuffers.getLast();
 
             deviceIndex = deviceIdx;
