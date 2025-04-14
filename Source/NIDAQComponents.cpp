@@ -541,40 +541,30 @@ void NIDAQmx::run()
     double ts;
 
     ai_timestamp = 0;
-    eventCode = 0;
     NIDAQ::int32 di_read = 0;
-    static int totalDIRead = 0;
     NIDAQ::int32 numSampsPerChan = CHANNEL_BUFFER_SIZE;
     NIDAQ::int32 ai_read = 0;
-    static int totalAIRead = 0;
 
     aiBuffer->clear();
-    ai_data.malloc (CHANNEL_BUFFER_SIZE * numActiveAnalogInputs, sizeof (NIDAQ::float64));
-    eventCodes.malloc (CHANNEL_BUFFER_SIZE, sizeof (NIDAQ::uInt32));
-
 
     LOGD ("Start acquisition");
     int digital_line_index  = 0;
 
-    int arraySizeInSamps = numActiveAnalogInputs * numSampsPerChan;
+    int arraySizeInSamps = numActiveAnalogInputs * numSampsPerChan*getNsample();
 
     while (! threadShouldExit())
     {   
         // start the thread to write on the digital line one pulse after each other with a duration of 1ms
-        std::vector<std::vector<NIDAQ::float64>> dev_ai_data (devices.size());
-        int numDevices = devices.size();
         
-
+        int numDevices = devices.size();
+        std::vector<std::vector<NIDAQ::float64>> dev_ai_data (devices.size());
         for (int dev_i = 0; dev_i < numDevices; dev_i++) {
-
-            
-
             if (numActiveAnalogInputs) {
                 dev_ai_data[dev_i].resize(arraySizeInSamps);
 
                 DAQmxErrChk(NIDAQ::DAQmxReadAnalogF64(
                     taskHandlesAI[dev_i],
-                    numSampsPerChan,
+                    numSampsPerChan*getNsample(),
                     timeout,
                     DAQmx_Val_GroupByChannel,
                     dev_ai_data[dev_i].data(),
@@ -587,24 +577,22 @@ void NIDAQmx::run()
        
         NIDAQ::int32 samplesRead = 0;
 
-        std::vector<NIDAQ::uInt8> dev_di_data (numSampsPerChan);
+        std::vector<NIDAQ::uInt8> dev_di_data (numSampsPerChan * getNsample());
 
         dev_di_data.resize (numSampsPerChan);
         DAQmxErrChk(NIDAQ::DAQmxReadDigitalLines(
             taskHandleDI_Read,  // The last handle is for reading
-            numSampsPerChan, // numSampsPerChan
+            numSampsPerChan * getNsample(), // numSampsPerChan
             timeout,
             DAQmx_Val_GroupByChannel,
             dev_di_data.data(),
-            numSampsPerChan,
+            numSampsPerChan * getNsample(),
             &samplesRead,
             NULL,
             NULL));
 
         int totalChannels = numActiveAnalogInputs * numDevices;
-        int totalScans = numSampsPerChan; 
-        //float aiSamples[3500];
-        int count = 0;
+        int totalScans = numSampsPerChan*getNsample(); 
         int scanIdx = 0;
         int nbr_channel = numActiveAnalogInputs*numDevices*32;
 
@@ -613,19 +601,24 @@ void NIDAQmx::run()
         output.allocate(nbr_channel, true);
         
         
-        int writeIdx = 0;
-        for (int station = 0; station < numDevices; ++station) {
-            for (int ch = 0; ch < numActiveDigitalInputs*numActiveAnalogInputs; ++ch) {
-                    output[writeIdx++] = dev_ai_data[station][ch];  // step per sample
-                
-            }
-        }
+        
 
-        juce::uint64 eventCode = 0;
-        // Update timestamp
-        ai_timestamp++;
-        // Now add the full scan (all devices) to the buffer
-        aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
+        for (int nsample=0; nsample<getNsample(); nsample++){
+            int writeIdx = 0;
+            for (int station = 0; station < numDevices; ++station) {
+                for (int ch = 0; ch < numActiveDigitalInputs; ++ch) {
+                    for(int analogch=0; analogch<numActiveAnalogInputs; analogch++)
+                        output[writeIdx++] = dev_ai_data[station][ch +analogch*numActiveDigitalInputs + nsample*numActiveDigitalInputs];  // step per sample
+                    
+                }
+            }
+
+            juce::uint64 eventCode = 0;
+            // Update timestamp
+            ai_timestamp++;
+            // Now add the full scan (all devices) to the buffer
+            aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
+        }
 
     }
         // fflush(stdout);

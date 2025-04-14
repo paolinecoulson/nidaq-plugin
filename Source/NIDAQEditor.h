@@ -47,12 +47,10 @@ class ColorSelector;
 class EditorBackground : public Component
 {
 public:
-    EditorBackground (int nAI, int nDI);
+    EditorBackground ();
 
 private:
     void paint (Graphics& g);
-    int nAI;
-    int nDI;
 };
 
 class BackgroundLoader : public Thread
@@ -138,6 +136,7 @@ private:
     ScopedPointer<ComboBox> sampleRateSelectBox;
     ScopedPointer<ComboBox> voltageRangeSelectBox;
     ScopedPointer<UtilityButton> configureDeviceButton;
+    ScopedPointer<ComboBox>  nSampleSelectBox;
 
     Array<File> savingDirectories;
 

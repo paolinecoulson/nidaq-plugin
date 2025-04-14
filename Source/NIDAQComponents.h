@@ -210,6 +210,9 @@ public:
     /* 32-bit mask indicating which lines are currently enabled */
     uint32 getActiveDigitalLines();
 
+    void setNsample(int nsample){ nSample = nsample;};
+    int getNsample() { return nSample; };
+
     int getNumPorts() { return devices[0]->digitalPortNames.size(); };
     bool getPortState (int idx) { return devices[0]->digitalPortStates[idx]; };
     void setPortState (int idx, bool state) { devices[0]->digitalPortStates.set (idx, state); };
@@ -232,7 +235,7 @@ private:
     int voltageRangeIndex = 0;
 
     int digitalReadSize = 0;
-
+    int nSample = 1;
     int numActiveAnalogInputs = DEFAULT_NUM_ANALOG_INPUTS; // 8
     int numActiveDigitalInputs = DEFAULT_NUM_DIGITAL_INPUTS; // 8
 

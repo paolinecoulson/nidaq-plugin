@@ -24,7 +24,7 @@
 #include "NIDAQEditor.h"
 #include "NIDAQThread.h"
 
-EditorBackground::EditorBackground (int nAI, int nDI) : nAI (nAI), nDI (nDI) {}
+EditorBackground::EditorBackground () {}
 
 void EditorBackground::paint (Graphics& g)
 {
@@ -33,8 +33,9 @@ void EditorBackground::paint (Graphics& g)
    g.setColour (findColour (ThemeColours::defaultText));
    g.setFont (10);
 
-   g.drawText (String ("SAMPLE RATE"), settingsOffsetX, 47, 100, 10, Justification::centredLeft);
-   g.drawText (String ("AI VOLTAGE RANGE"), settingsOffsetX, 80, 100, 10, Justification::centredLeft);
+   g.drawText (String ("SAMPLE RATE"), settingsOffsetX, 10, 100, 10, Justification::centredLeft);
+   g.drawText (String ("AI VOLTAGE RANGE"), settingsOffsetX, 40, 100, 10, Justification::centredLeft);
+   g.drawText (String ("NSAMPLES"), settingsOffsetX, 80, 100, 10, Justification::centredLeft);
 }
 
 BackgroundLoader::BackgroundLoader (NIDAQThread* thread, NIDAQEditor* editor)
@@ -66,29 +67,10 @@ void NIDAQEditor::draw()
 {
     NIDAQThread* t = thread;
 
-    int nAI;
-    int nDI;
-
-    if (t->getDeviceName() == "Simulated Device")
-    {
-        nAI = 8;
-        nDI = 8;
-    }
-    else
-    {
-        nAI = t->getNumActiveAnalogInputs();
-        nDI = t->getNumActiveDigitalInputs();
-    }
-
-    int maxChannelsPerColumn = 4;
-    int aiChannelsPerColumn = nAI > 0 && nAI < maxChannelsPerColumn ? nAI : maxChannelsPerColumn;
-    int diChannelsPerColumn = nDI > 0 && nDI < maxChannelsPerColumn ? nDI : maxChannelsPerColumn;
-
-    int xOffset = 100;
-
+    int xOffset = 10;
 
     sampleRateSelectBox = new ComboBox ("SampleRateSelectBox");
-    sampleRateSelectBox->setBounds (xOffset, 72, 85, 20);
+    sampleRateSelectBox->setBounds (xOffset,35, 85, 20);
     Array<NIDAQ::float64> sampleRates = t->getSampleRates();
     for (int i = 0; i < sampleRates.size(); i++)
     {
@@ -99,7 +81,7 @@ void NIDAQEditor::draw()
     addAndMakeVisible (sampleRateSelectBox);
 
     voltageRangeSelectBox = new ComboBox ("VoltageRangeSelectBox");
-    voltageRangeSelectBox->setBounds (xOffset, 105, 85, 20);
+    voltageRangeSelectBox->setBounds (xOffset, 65, 85, 20);
     Array<SettingsRange> voltageRanges = t->getVoltageRanges();
     for (int i = 0; i < voltageRanges.size(); i++)
     {
@@ -117,16 +99,22 @@ void NIDAQEditor::draw()
     configureDeviceButton->setAlpha (0.5f);
     addAndMakeVisible (configureDeviceButton);
 
-    desiredWidth = xOffset + 100;
+    nSampleSelectBox = new ComboBox ("NsampleSelectBox");
+    nSampleSelectBox->setBounds (xOffset, 105, 85, 20);
 
-    background = new EditorBackground (nAI, nDI);
+    for (int i = 1; i < 10; i++)
+    {
+        nSampleSelectBox->addItem (String (i), i);
+    }
+    nSampleSelectBox->setSelectedItemIndex(t->getNsample(), false);
+    nSampleSelectBox->addListener (this);
+    addAndMakeVisible (nSampleSelectBox);
+    
+    background = new EditorBackground ();
     background->setBounds (0, 15, 1000, 150);
     addAndMakeVisible (background);
     background->toBack();
     background->repaint();
-
-    //TODO: Why this line casuses crash in editor->update in v6?
-    //setDisplayName("NIDAQmx-(" + t->getProductName() + ")");
 }
 
 void NIDAQEditor::update (int numAnalog, int numDigital, int digitalReadSize)
@@ -165,14 +153,14 @@ void NIDAQEditor::startAcquisition()
 {
     sampleRateSelectBox->setEnabled (false);
     voltageRangeSelectBox->setEnabled (false);
-
+    nSampleSelectBox->setEnabled (false);
     //Disable device config button
     configureDeviceButton->setEnabled (false);
 }
 
 void NIDAQEditor::stopAcquisition()
 {
-    //deviceSelectBox->setEnabled (true);
+    nSampleSelectBox->setEnabled (true);
     sampleRateSelectBox->setEnabled (true);
     voltageRangeSelectBox->setEnabled (true);
 
@@ -200,6 +188,19 @@ void NIDAQEditor::comboBoxChanged (ComboBox* comboBox)
         else
         {
             comboBox->setSelectedItemIndex (thread->getSampleRateIndex());
+        }
+    }
+    else if (comboBox == nSampleSelectBox)
+    {
+        if (! thread->isThreadRunning())
+        {
+            thread->setNsample (comboBox->getSelectedId());
+            LOGD (comboBox->getSelectedId());
+            CoreServices::updateSignalChain (this);
+        }
+        else
+        {
+            comboBox->setSelectedItemIndex (thread->getNsample()-1);
         }
     }
     else // (comboBox == voltageRangeSelectBox)
@@ -240,6 +241,7 @@ void NIDAQEditor::saveCustomParametersToXml (XmlElement* xml)
     xml->setAttribute ("deviceName", thread->getDeviceName());
     xml->setAttribute ("sampleRate", thread->getSampleRate());
     xml->setAttribute ("voltageRange", thread->getVoltageRangeIndex());
+    xml->setAttribute ("nSample", thread->getNsample());
 
     xml->setAttribute ("numAnalog", thread->getNumActiveAnalogInputs());
     xml->setAttribute ("numDigital", thread->getNumActiveDigitalInputs());
@@ -285,6 +287,17 @@ void NIDAQEditor::loadCustomParametersFromXml (XmlElement* xml)
             idx++;
         }
     }
+
+    int nSample = xml->getStringAttribute ("nSample", "0").getIntValue();
+
+    // Load sample rate
+    if (nSample > 0)
+    {
+        LOGD ("Setting saved nSample: " + String (nSample) + " (" + String (nSample) + ")");
+        thread->setNsample (nSample);
+        sampleRateSelectBox->setSelectedItemIndex (nSample-1, false);
+    }
+
 
     // Load voltage range
     int voltageRangeIndex = xml->getStringAttribute ("voltageRange", "-1").getIntValue();
