@@ -200,9 +200,11 @@ void NIDAQmx::connect(int index)
         {
             NIDAQ::float64 vmin = data[i];
             NIDAQ::float64 vmax = data[i + 1];
+
             if (vmin == vmax || abs (vmin) < 1e-10 || vmax < 1e-2)
                 break;
-                device->voltageRanges.add (SettingsRange (vmin, vmax));
+            
+            device->voltageRanges.add (SettingsRange (vmin, vmax));
         }
 
         NIDAQ::int32 error = 0;
@@ -672,6 +674,8 @@ void NIDAQmx::run()
         }
         NIDAQ::DAQmxStopTask (taskHandleDI_Read);
         NIDAQ::DAQmxClearTask (taskHandleDI_Read);
+        NIDAQ::DAQmxStopTask (taskHandleDI_Start);
+        NIDAQ::DAQmxClearTask (taskHandleDI_Start);
     }
 
     return;
@@ -699,8 +703,17 @@ Error:
             NIDAQ::DAQmxStopTask (taskHandleDI);
             NIDAQ::DAQmxClearTask (taskHandleDI);
         }
+    }
+
+    if (taskHandleDI_Read)
+    {
         NIDAQ::DAQmxStopTask (taskHandleDI_Read);
         NIDAQ::DAQmxClearTask (taskHandleDI_Read);
+    }
+    if (taskHandleDI_Start)
+    {
+        NIDAQ::DAQmxStopTask (taskHandleDI_Start);
+        NIDAQ::DAQmxClearTask (taskHandleDI_Start);
     }
 
     if (DAQmxFailed (error))
