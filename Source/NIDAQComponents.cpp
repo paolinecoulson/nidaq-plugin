@@ -370,7 +370,8 @@ uint32 NIDAQmx::getActiveDigitalLines()
 void NIDAQmx::run()
 {
     /* Derived from NIDAQmx: ANSI C Example program: ContAI-ReadDigChan.c */
-
+    NIDAQ::float64 timeout = 5.0;
+    NIDAQ::int32 samplesWritten = 0;
     /* Single task to handle all analog inputs */
     std::vector<NIDAQ::TaskHandle> taskHandlesAI = std::vector<NIDAQ::TaskHandle>();
 
@@ -378,6 +379,8 @@ void NIDAQmx::run()
     std::vector<NIDAQ::TaskHandle> taskHandlesDI = std::vector<NIDAQ::TaskHandle>();
 
     NIDAQ::TaskHandle taskHandleDI_Read = 0;
+    NIDAQ::TaskHandle taskHandleDI_Start = 0;
+
     NIDAQ::int32 error = 0;
     char errBuff[ERR_BUFF_SIZE] = { '\0' };
     char trigName[256];
@@ -458,65 +461,91 @@ void NIDAQmx::run()
             
             DAQmxErrChk(NIDAQ::DAQmxSetWriteRegenMode(taskHandleDI, DAQmx_Val_AllowRegen));
 
+            
+
+            const int numLinesPerStation = 8;
+            const int pulseLengthInSamples = 1; 
+            const int numStations = 4;
+
+            const int samplesPerStation = numLinesPerStation * pulseLengthInSamples;
+            const int  totalSamples = samplesPerStation * numStations;
+            std::vector<NIDAQ::uInt32> waveform (totalSamples, 0);
+            // Offset in time where this station should start its sequence
+            int startSample = taskHandlesDI.size() * samplesPerStation;
+                    
+            for (int line_i = 0; line_i < numLinesPerStation; ++line_i)
+            {
+                int sampleOffset = startSample + line_i * pulseLengthInSamples;
+                NIDAQ::uInt8 bitMask = static_cast<NIDAQ::uInt8>(1 << line_i);
+                waveform[sampleOffset] = bitMask;  // single-sample pulse
+                LOGD ("index: ", sampleOffset, "value: ", waveform[sampleOffset]);
+            }
+                    
+        
+            
+            DAQmxErrChk(NIDAQ::DAQmxWriteDigitalU32(
+                taskHandleDI,
+                totalSamples,
+                0,                          // autoStart = false
+                timeout,                   // timeout
+                DAQmx_Val_GroupByChannel,
+                waveform.data(),
+                &samplesWritten,
+                NULL));
+
             taskHandlesDI.push_back (taskHandleDI);
         }
 
         if (getSlotNumber(dev_i) == "6") {
-        
+            // Received pulse from other system for synchronization
             DAQmxErrChk(NIDAQ::DAQmxCreateTask("DI_Read_Task", &taskHandleDI_Read));
             
             DAQmxErrChk(NIDAQ::DAQmxCreateDIChan(taskHandleDI_Read,
-                STR2CHR(devices[dev_i]->getName() + "/port0/line23"),
+                STR2CHR(devices[dev_i]->getName() + "/port0/line9"),
                 "",
                 DAQmx_Val_ChanPerLine));
             
-                DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Read,
+            DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Read,
                     trigName, getSampleRate(), DAQmx_Val_Rising,
                     DAQmx_Val_ContSamps, numActiveAnalogInputs * CHANNEL_BUFFER_SIZE));
-    
+                    
+
+            // Start pulse ! 
+            int pulse_number =2;
+            int pulse_length =0.5*getSampleRate();
+            std::vector<NIDAQ::uInt32> waveform_start(pulse_length*2*pulse_number, 0);
+
+            DAQmxErrChk(NIDAQ::DAQmxCreateTask("DITask_start_pulse" , &taskHandleDI_Start));
+            DAQmxErrChk(NIDAQ::DAQmxCreateDOChan(taskHandleDI_Start,
+                            STR2CHR(devices[dev_i]->getName()+ "/port0/line8"),
+                            "",
+                            DAQmx_Val_ChanPerLine));
+                
+            DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Start,
+                            trigName, getSampleRate(), DAQmx_Val_Rising,
+                            DAQmx_Val_FiniteSamps, pulse_length * 2 * pulse_number));
+                            
+            for (int pulse_id = 0; pulse_id < pulse_number; pulse_id++)
+            {
+                std::fill(waveform_start.begin() + pulse_length*2*pulse_id, 
+                          waveform_start.begin() + pulse_length*(2*pulse_id + 1), 1);
+            }
+            
+            DAQmxErrChk(NIDAQ::DAQmxWriteDigitalU32(
+                taskHandleDI_Start,
+                pulse_length*2*pulse_number,
+                0,                        
+                timeout,                   
+                DAQmx_Val_GroupByChannel,
+                waveform_start.data(),
+                &samplesWritten,
+                NULL));              
         }
-        
     }
 
-    const int numStations = taskHandlesDI.size();
-    const int numLinesPerStation = 8;
-    const int pulseLengthInSamples = 1; 
-    
-    NIDAQ::float64 timeout = 5.0;
-    const int samplesPerStation = numLinesPerStation * pulseLengthInSamples;
-    const int  totalSamples = samplesPerStation * numStations;
-    
-    for (int station_i = 0; station_i < numStations; ++station_i)
-    {
-        std::vector<NIDAQ::uInt32> waveform(totalSamples, 0);
-    
-        // Offset in time where this station should start its sequence
-        int startSample = station_i * samplesPerStation;
-        LOGD ("station: ", station_i);
-
-        for (int line_i = 0; line_i < numLinesPerStation; ++line_i)
-        {
-            int sampleOffset = startSample + line_i * pulseLengthInSamples;
-            NIDAQ::uInt8 bitMask = static_cast<NIDAQ::uInt8>(1 << line_i);
-            waveform[sampleOffset] = bitMask;  // single-sample pulse
-            LOGD ("index: ", sampleOffset, "value: ", waveform[sampleOffset]);
-        }
-
-        //LOGD(waveform);
-
-        NIDAQ::int32 samplesWritten = 0;
-        DAQmxErrChk(NIDAQ::DAQmxWriteDigitalU32(
-            taskHandlesDI[station_i],
-            totalSamples,
-            0,                          // autoStart = false
-            timeout,                   // timeout
-            DAQmx_Val_GroupByChannel,
-            waveform.data(),
-            &samplesWritten,
-            NULL));
-    }
-    
     LOGD("Number of digital output: ", taskHandlesDI.size());
+
+    
     // This order is necessary to get the timing right
     for (auto& taskHandleAI : taskHandlesAI)
         DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleAI, DAQmx_Val_Task_Commit));
@@ -525,11 +554,13 @@ void NIDAQmx::run()
         DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleDI, DAQmx_Val_Task_Commit));
     
     DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleDI_Read, DAQmx_Val_Task_Commit));
+    DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleDI_Start, DAQmx_Val_Task_Commit));
 
     for (auto& taskHandleDI : taskHandlesDI)
         DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandleDI));
 
     DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandleDI_Read));
+    DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandleDI_Start));
 
     for(int i=1; i<taskHandlesAI.size(); i++)
         DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandlesAI[i]));
@@ -566,7 +597,7 @@ void NIDAQmx::run()
                     taskHandlesAI[dev_i],
                     numSampsPerChan*getNsample(),
                     timeout,
-                    DAQmx_Val_GroupByChannel,
+                    DAQmx_Val_GroupByScanNumber,
                     dev_ai_data[dev_i].data(),
                     arraySizeInSamps,
                     &ai_read,
@@ -596,13 +627,11 @@ void NIDAQmx::run()
         int scanIdx = 0;
         int nbr_channel = numActiveAnalogInputs*numDevices*32;
 
+        juce::uint64 eventCode =0;
 
         HeapBlock<float> output;
         output.allocate(nbr_channel, true);
         
-        
-        
-
         for (int nsample=0; nsample<getNsample(); nsample++){
             int writeIdx = 0;
             for (int station = 0; station < numDevices; ++station) {
@@ -613,7 +642,7 @@ void NIDAQmx::run()
                 }
             }
 
-            juce::uint64 eventCode = 0;
+            eventCode = dev_di_data[nsample];
             // Update timestamp
             ai_timestamp++;
             // Now add the full scan (all devices) to the buffer
