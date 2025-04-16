@@ -531,7 +531,7 @@ void NIDAQmx::run()
 
             //DAQmxErrChk (NIDAQ::DAQmxCfgDigEdgeStartTrig (taskHandleDI_Read, startTrigName, DAQmx_Val_Rising));
             // Start pulse ! 
-            NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << 9);
+            NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << 8);
             std::vector<NIDAQ::uInt32> waveform_start ({ 0, bitMask, 0, bitMask });
             LOGD("Setup DO start task ") ;
             DAQmxErrChk(NIDAQ::DAQmxCreateTask("DITask_start_pulse" , &taskHandleDI_Start));
