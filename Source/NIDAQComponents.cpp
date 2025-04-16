@@ -468,7 +468,7 @@ void NIDAQmx::run()
         
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI,
                     trigName, getSampleRate(), DAQmx_Val_Rising,
-                    DAQmx_Val_ContSamps, CHANNEL_BUFFER_SIZE*getNsample()*10));
+                    DAQmx_Val_ContSamps, CHANNEL_BUFFER_SIZE*getNsample()));
             
             //DAQmxErrChk (NIDAQ::DAQmxCfgDigEdgeStartTrig (taskHandleDI, startTrigName, DAQmx_Val_Rising));
             
@@ -527,7 +527,7 @@ void NIDAQmx::run()
             
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Read,
                     trigName, getSampleRate()/CHANNEL_BUFFER_SIZE, DAQmx_Val_Rising,
-                    DAQmx_Val_ContSamps, getNsample()*10));
+                    DAQmx_Val_ContSamps, getNsample()));
 
             //DAQmxErrChk (NIDAQ::DAQmxCfgDigEdgeStartTrig (taskHandleDI_Read, startTrigName, DAQmx_Val_Rising));
             // Start pulse ! 
@@ -542,7 +542,7 @@ void NIDAQmx::run()
                 
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Start,
                             trigName, 2, DAQmx_Val_Rising,
-                            DAQmx_Val_ContSamps, waveform_start.size()*5));
+                            DAQmx_Val_ContSamps, waveform_start.size()));
             
             DAQmxErrChk(NIDAQ::DAQmxSetWriteRegenMode(taskHandleDI_Start, DAQmx_Val_AllowRegen));   
 
@@ -644,6 +644,7 @@ void NIDAQmx::run()
             }
 
             eventCode = dev_di_data[nsample];
+            LOGD("event code: ", eventCode);
             ai_timestamp++;
             aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
         }
