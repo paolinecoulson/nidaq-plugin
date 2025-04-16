@@ -523,18 +523,16 @@ void NIDAQmx::run()
             DAQmxErrChk(NIDAQ::DAQmxCreateDIChan(taskHandleDI_Read,
                         STR2CHR(devices[dev_i]->getName() + "/port0/line9"),
                         "",
-                        DAQmx_Val_ChanPerLine));
+                        DAQmx_Val_ChanForAllLines));
             
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Read,
                     trigName, getSampleRate()/CHANNEL_BUFFER_SIZE, DAQmx_Val_Rising,
                     DAQmx_Val_ContSamps, getNsample()*10));
-                    
-             
 
             //DAQmxErrChk (NIDAQ::DAQmxCfgDigEdgeStartTrig (taskHandleDI_Read, startTrigName, DAQmx_Val_Rising));
             // Start pulse ! 
             NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << 9);
-            std::vector<NIDAQ::uInt32> waveform_start({0,1,0,1});
+            std::vector<NIDAQ::uInt32> waveform_start ({ 0, bitMask, 0, bitMask });
             LOGD("Setup DO start task ") ;
             DAQmxErrChk(NIDAQ::DAQmxCreateTask("DITask_start_pulse" , &taskHandleDI_Start));
             DAQmxErrChk(NIDAQ::DAQmxCreateDOChan(taskHandleDI_Start,
