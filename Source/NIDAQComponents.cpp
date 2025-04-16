@@ -95,6 +95,7 @@ void NIDAQmxDeviceManager::scanForDevices()
             devices.getLast()->productName = String (&pname[0]);
             NIDAQ::uInt32 slotNbr;
             NIDAQ::DAQmxGetDevPXISlotNum(STR2CHR (deviceName), &slotNbr);
+            LOGD ("Detection slot ", slotNbr, deviceName);
             devices.getLast()->slotNbr = slotNbr;
         }
     }
@@ -373,7 +374,7 @@ void NIDAQmx::run()
 {
     /* Derived from NIDAQmx: ANSI C Example program: ContAI-ReadDigChan.c */
     NIDAQ::float64 timeout = 5.0;
-    NIDAQ::int32 samplesWritten = 0;
+    
     /* Single task to handle all analog inputs */
     std::vector<NIDAQ::TaskHandle> taskHandlesAI = std::vector<NIDAQ::TaskHandle>();
 
@@ -386,13 +387,18 @@ void NIDAQmx::run()
     NIDAQ::int32 error = 0;
     char errBuff[ERR_BUFF_SIZE] = { '\0' };
     char trigName[256];
+    char startTrigName[256];
     NIDAQ::TaskHandle masterHandleAI = 0;
+
     /**************************************/
     /********CONFIG ANALOG CHANNELS********/
     /**************************************/
     /* Create an analog input task */
+
     for(int dev_i=0; dev_i < devices.size(); dev_i++){
         NIDAQ::TaskHandle taskHandleAI = 0;
+
+        LOGD(getSlotNumber(dev_i));
         DAQmxErrChk (NIDAQ::DAQmxCreateTask (STR2CHR ("AITask_PXI" + getSlotNumber(dev_i)), &taskHandleAI));
     
         /* Create a voltage channel for each analog input */
@@ -406,30 +412,30 @@ void NIDAQmx::run()
 
             DAQmxErrChk (NIDAQ::DAQmxCreateAIVoltageChan (
                 taskHandleAI, // task handle
-                STR2CHR (ai[dev_i*numActiveAnalogInputs + i]->getName()), // NIDAQ physical channel name (e.g. dev1/ai1)
-                "", // user-defined channel name (optional)
-                termConfig, // input terminal configuration
-                voltageRange.min, // min input voltage
-                voltageRange.max, // max input voltage
-                DAQmx_Val_Volts, // voltage units
+                STR2CHR (ai[dev_i*numActiveAnalogInputs + i]->getName()), 
+                "",
+                termConfig, 
+                voltageRange.min, 
+                voltageRange.max, 
+                DAQmx_Val_Volts, 
                 NULL));
         }
 
         // Master: internal clock
         if (dev_i == 0){
             DAQmxErrChk (GetTerminalNameWithDevPrefix (taskHandleAI, "PXI_Trig0", trigName));
+            DAQmxErrChk(GetTerminalNameWithDevPrefix(taskHandleAI, "ao/StartTrigger", startTrigName));
 
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleAI,
                 "",
                 getSampleRate(),
                 DAQmx_Val_Rising,
                 DAQmx_Val_ContSamps,
-                numActiveAnalogInputs * CHANNEL_BUFFER_SIZE));
+                getNsample() * CHANNEL_BUFFER_SIZE*10));
     
             // Export master’s sample clock
-            DAQmxErrChk(NIDAQ::DAQmxExportSignal(taskHandleAI,
-                DAQmx_Val_SampleClock,
-                trigName));
+            DAQmxErrChk(NIDAQ::DAQmxExportSignal(taskHandleAI, DAQmx_Val_SampleClock, trigName));
+
         }
         else
         {
@@ -439,7 +445,9 @@ void NIDAQmx::run()
                                                        getSampleRate(),
                                                        DAQmx_Val_Rising,
                                                        DAQmx_Val_ContSamps,
-                                                       numActiveAnalogInputs * CHANNEL_BUFFER_SIZE));
+                                                       getNsample() * CHANNEL_BUFFER_SIZE*10));
+
+            DAQmxErrChk (NIDAQ::DAQmxCfgDigEdgeStartTrig (taskHandleAI, startTrigName, DAQmx_Val_Rising));
         }
     
         taskHandlesAI.push_back (taskHandleAI);
@@ -450,22 +458,22 @@ void NIDAQmx::run()
 
         if (getSlotNumber(dev_i) == "2" || getSlotNumber(dev_i) == "3" || getSlotNumber(dev_i) == "4" || getSlotNumber(dev_i) == "5"){
             NIDAQ::TaskHandle taskHandleDI = 0;
-    
+            const int numLinesPerStation = 8;
+            LOGD("Setup DO task");
             DAQmxErrChk(NIDAQ::DAQmxCreateTask(STR2CHR ("DITask" + getSlotNumber(dev_i)) , &taskHandleDI));
             DAQmxErrChk(NIDAQ::DAQmxCreateDOChan(taskHandleDI,
-                    STR2CHR(devices[dev_i]->getName()+ "/port0/line0:7"),
+                    STR2CHR(devices[dev_i]->getName()+ "/port0"),
                     "",
-                    DAQmx_Val_ChanPerLine));
+                    DAQmx_Val_ChanForAllLines));
         
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI,
                     trigName, getSampleRate(), DAQmx_Val_Rising,
-                    DAQmx_Val_ContSamps, numActiveAnalogInputs * CHANNEL_BUFFER_SIZE));
+                    DAQmx_Val_ContSamps, CHANNEL_BUFFER_SIZE*getNsample()*10));
+            
+            //DAQmxErrChk (NIDAQ::DAQmxCfgDigEdgeStartTrig (taskHandleDI, startTrigName, DAQmx_Val_Rising));
             
             DAQmxErrChk(NIDAQ::DAQmxSetWriteRegenMode(taskHandleDI, DAQmx_Val_AllowRegen));
 
-            
-
-            const int numLinesPerStation = 8;
             const int pulseLengthInSamples = 1; 
             const int numStations = 4;
 
@@ -474,17 +482,26 @@ void NIDAQmx::run()
             std::vector<NIDAQ::uInt32> waveform (totalSamples, 0);
             // Offset in time where this station should start its sequence
             int startSample = taskHandlesDI.size() * samplesPerStation;
-                    
-            for (int line_i = 0; line_i < numLinesPerStation; ++line_i)
+            
+            /* for (int line_i = 0; line_i < numLinesPerStation; ++line_i)
             {
                 int sampleOffset = startSample + line_i * pulseLengthInSamples;
-                NIDAQ::uInt8 bitMask = static_cast<NIDAQ::uInt8>(1 << line_i);
-                waveform[sampleOffset] = bitMask;  // single-sample pulse
+                NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32>(1 << line_i);
+                waveform[sampleOffset] = bitMask;  
+                LOGD ("index: ", sampleOffset, "value: ", waveform[sampleOffset]);
+            }*/
+            if (getSlotNumber (dev_i) == "2")
+            {
+                int line_i = 0;
+                int sampleOffset = startSample + line_i * pulseLengthInSamples;
+                NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << line_i);
+                waveform[sampleOffset] = bitMask; 
+
                 LOGD ("index: ", sampleOffset, "value: ", waveform[sampleOffset]);
             }
                     
         
-            
+            NIDAQ::int32 samplesWritten_dig = 0;
             DAQmxErrChk(NIDAQ::DAQmxWriteDigitalU32(
                 taskHandleDI,
                 totalSamples,
@@ -492,31 +509,33 @@ void NIDAQmx::run()
                 timeout,                   // timeout
                 DAQmx_Val_GroupByChannel,
                 waveform.data(),
-                &samplesWritten,
+                NULL,
                 NULL));
 
             taskHandlesDI.push_back (taskHandleDI);
         }
 
         if (getSlotNumber(dev_i) == "6") {
+            LOGD("Setup DI task ") ;
             // Received pulse from other system for synchronization
             DAQmxErrChk(NIDAQ::DAQmxCreateTask("DI_Read_Task", &taskHandleDI_Read));
             
             DAQmxErrChk(NIDAQ::DAQmxCreateDIChan(taskHandleDI_Read,
-                STR2CHR(devices[dev_i]->getName() + "/port0/line9"),
-                "",
-                DAQmx_Val_ChanPerLine));
+                        STR2CHR(devices[dev_i]->getName() + "/port0/line9"),
+                        "",
+                        DAQmx_Val_ChanPerLine));
             
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Read,
-                    trigName, getSampleRate(), DAQmx_Val_Rising,
-                    DAQmx_Val_ContSamps, numActiveAnalogInputs * CHANNEL_BUFFER_SIZE));
+                    trigName, getSampleRate()/CHANNEL_BUFFER_SIZE, DAQmx_Val_Rising,
+                    DAQmx_Val_ContSamps, getNsample()*10));
                     
+             
 
+            //DAQmxErrChk (NIDAQ::DAQmxCfgDigEdgeStartTrig (taskHandleDI_Read, startTrigName, DAQmx_Val_Rising));
             // Start pulse ! 
-            int pulse_number =2;
-            int pulse_length =0.5*getSampleRate();
-            std::vector<NIDAQ::uInt32> waveform_start(pulse_length*2*pulse_number, 0);
-
+            NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << 9);
+            std::vector<NIDAQ::uInt32> waveform_start({0,1,0,1});
+            LOGD("Setup DO start task ") ;
             DAQmxErrChk(NIDAQ::DAQmxCreateTask("DITask_start_pulse" , &taskHandleDI_Start));
             DAQmxErrChk(NIDAQ::DAQmxCreateDOChan(taskHandleDI_Start,
                             STR2CHR(devices[dev_i]->getName()+ "/port0/line8"),
@@ -524,23 +543,19 @@ void NIDAQmx::run()
                             DAQmx_Val_ChanPerLine));
                 
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Start,
-                            trigName, getSampleRate(), DAQmx_Val_Rising,
-                            DAQmx_Val_FiniteSamps, pulse_length * 2 * pulse_number));
-                            
-            for (int pulse_id = 0; pulse_id < pulse_number; pulse_id++)
-            {
-                std::fill(waveform_start.begin() + pulse_length*2*pulse_id, 
-                          waveform_start.begin() + pulse_length*(2*pulse_id + 1), 1);
-            }
+                            trigName, 2, DAQmx_Val_Rising,
+                            DAQmx_Val_ContSamps, waveform_start.size()*5));
             
+            DAQmxErrChk(NIDAQ::DAQmxSetWriteRegenMode(taskHandleDI_Start, DAQmx_Val_AllowRegen));   
+
             DAQmxErrChk(NIDAQ::DAQmxWriteDigitalU32(
                 taskHandleDI_Start,
-                pulse_length*2*pulse_number,
+                waveform_start.size(),
                 0,                        
                 timeout,                   
                 DAQmx_Val_GroupByChannel,
                 waveform_start.data(),
-                &samplesWritten,
+                NULL,
                 NULL));              
         }
     }
@@ -569,30 +584,34 @@ void NIDAQmx::run()
 
     DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandlesAI[0]));  // Master task which trigger everything
 
-
-    uint64 linesEnabled = 0;
     double ts;
 
     ai_timestamp = 0;
-    NIDAQ::int32 di_read = 0;
+
     NIDAQ::int32 numSampsPerChan = CHANNEL_BUFFER_SIZE;
     NIDAQ::int32 ai_read = 0;
 
     aiBuffer->clear();
 
     LOGD ("Start acquisition");
-    int digital_line_index  = 0;
 
-    int arraySizeInSamps = numActiveAnalogInputs * numSampsPerChan*getNsample();
+    int numDevices = devices.size();
+    int nbr_channel = numActiveAnalogInputs*numDevices*numActiveDigitalInputs;
+    juce::uint64 eventCode =0;
+
 
     while (! threadShouldExit())
     {   
-        // start the thread to write on the digital line one pulse after each other with a duration of 1ms
-        
-        int numDevices = devices.size();
+        HeapBlock<float> output;
+        output.allocate (nbr_channel, true);
         std::vector<std::vector<NIDAQ::float64>> dev_ai_data (devices.size());
+        std::vector<NIDAQ::uInt32> dev_di_data (getNsample());
+
+
         for (int dev_i = 0; dev_i < numDevices; dev_i++) {
             if (numActiveAnalogInputs) {
+
+                int arraySizeInSamps = numActiveAnalogInputs * numSampsPerChan*getNsample();
                 dev_ai_data[dev_i].resize(arraySizeInSamps);
 
                 DAQmxErrChk(NIDAQ::DAQmxReadAnalogF64(
@@ -607,47 +626,27 @@ void NIDAQmx::run()
             }
         }
 
-       
-        NIDAQ::int32 samplesRead = 0;
-
-        std::vector<NIDAQ::uInt8> dev_di_data (numSampsPerChan * getNsample());
-
-        dev_di_data.resize (numSampsPerChan);
-        DAQmxErrChk(NIDAQ::DAQmxReadDigitalLines(
-            taskHandleDI_Read,  // The last handle is for reading
-            numSampsPerChan * getNsample(), // numSampsPerChan
+        DAQmxErrChk(NIDAQ::DAQmxReadDigitalU32(
+            taskHandleDI_Read,  
+            getNsample(), 
             timeout,
-            DAQmx_Val_GroupByChannel,
+            DAQmx_Val_GroupByScanNumber,
             dev_di_data.data(),
-            numSampsPerChan * getNsample(),
-            &samplesRead,
+            getNsample(),
             NULL,
             NULL));
 
-        int totalChannels = numActiveAnalogInputs * numDevices;
-        int totalScans = numSampsPerChan*getNsample(); 
-        int scanIdx = 0;
-        int nbr_channel = numActiveAnalogInputs*numDevices*32;
-
-        juce::uint64 eventCode =0;
-
-        HeapBlock<float> output;
-        output.allocate(nbr_channel, true);
-        
         for (int nsample=0; nsample<getNsample(); nsample++){
             int writeIdx = 0;
             for (int station = 0; station < numDevices; ++station) {
                 for (int ch = 0; ch < numActiveDigitalInputs; ++ch) {
                     for(int analogch=0; analogch<numActiveAnalogInputs; analogch++)
-                        output[writeIdx++] = dev_ai_data[station][ch +analogch*numActiveDigitalInputs + nsample*numActiveDigitalInputs];  // step per sample
-                    
+                        output[writeIdx++] = dev_ai_data[station][ch +analogch*numActiveAnalogInputs + nsample*numActiveDigitalInputs];  // step per sample
                 }
             }
 
             eventCode = dev_di_data[nsample];
-            // Update timestamp
             ai_timestamp++;
-            // Now add the full scan (all devices) to the buffer
             aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
         }
 
