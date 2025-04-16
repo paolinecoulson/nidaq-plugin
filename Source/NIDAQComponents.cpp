@@ -541,7 +541,7 @@ void NIDAQmx::run()
                             DAQmx_Val_ChanPerLine));
                 
             DAQmxErrChk(NIDAQ::DAQmxCfgSampClkTiming(taskHandleDI_Start,
-                            trigName, 2, DAQmx_Val_Rising,
+                            trigName, 10, DAQmx_Val_Rising,
                             DAQmx_Val_ContSamps, waveform_start.size()));
             
             DAQmxErrChk(NIDAQ::DAQmxSetWriteRegenMode(taskHandleDI_Start, DAQmx_Val_AllowRegen));   
