@@ -605,9 +605,6 @@ void NIDAQmx::run()
 
     ai_timestamp = 0;
 
-    NIDAQ::int32 numSampsPerChan = CHANNEL_BUFFER_SIZE;
-    NIDAQ::int32 ai_read = 0;
-
     aiBuffer->clear();
 
     LOGD ("Start acquisition");
@@ -628,17 +625,17 @@ void NIDAQmx::run()
         for (int dev_i = 0; dev_i < numDevices; dev_i++) {
             if (numActiveAnalogInputs) {
 
-                int arraySizeInSamps = numActiveAnalogInputs * numSampsPerChan*getNsample();
+                int arraySizeInSamps = numActiveAnalogInputs * CHANNEL_BUFFER_SIZE*getNsample();
                 dev_ai_data[dev_i].resize(arraySizeInSamps);
 
                 DAQmxErrChk(NIDAQ::DAQmxReadAnalogF64(
                     taskHandlesAI[dev_i],
-                    numSampsPerChan*getNsample(),
+                    CHANNEL_BUFFER_SIZE*getNsample(),
                     timeout,
                     DAQmx_Val_GroupByScanNumber,
                     dev_ai_data[dev_i].data(),
                     arraySizeInSamps,
-                    &ai_read,
+                    NULL,
                     NULL));  
             }
         }
@@ -664,7 +661,6 @@ void NIDAQmx::run()
 
             eventCode = dev_di_data[nsample * numActiveDigitalInputs]; //*std::max(dev_di_data.begin()+nsample, dev_di_data.begin()+nsample+numActiveDigitalInputs);
             
-            LOGD("event code: ", eventCode);
             ai_timestamp++;
             aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
         }
