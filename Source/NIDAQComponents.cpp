@@ -652,19 +652,17 @@ void NIDAQmx::run()
             NULL,
             NULL));
 
-        for (int nsample=0; nsample<getNsample(); nsample++){
+        for (int nsample=0; nsample<getNsample(); ++nsample){
             int writeIdx = 0;
             for (int station = 0; station < numDevices; ++station) {
                 for (int ch = 0; ch < numActiveDigitalInputs; ch++) {
-                    for(int analogch=0; analogch<(numActiveAnalogInputs); analogch++)
+                    for(int analogch=0; analogch<(numActiveAnalogInputs); ++analogch)
                         output[writeIdx++] = dev_ai_data[station][ch +analogch*numActiveAnalogInputs + nsample*numActiveDigitalInputs];  // step per sample
                 }
             }
 
-            eventCode = *std::max(dev_di_data.begin() + nsample * CHANNEL_BUFFER_SIZE, dev_di_data.begin() + (nsample + 1) * CHANNEL_BUFFER_SIZE-1);
-            if(eventCode != 0)
-                LOGD("Event ", eventCode);
-            
+            eventCode = *std::max_element(dev_di_data.begin() + nsample * CHANNEL_BUFFER_SIZE, dev_di_data.begin() + (nsample + 1) * CHANNEL_BUFFER_SIZE);
+
             ai_timestamp++;
             aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);
         }

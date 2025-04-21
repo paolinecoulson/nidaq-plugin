@@ -90,13 +90,13 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
             "Analog input channels from a NIDAQ device",
             "identifier",
 
-            getSampleRate()
+            getSampleRate()/32
 
         };
 
         sourceStreams.add (new DataStream (settings));
     }
-    else if (sourceStreams[0]->getSampleRate() != getSampleRate())
+    else if (sourceStreams[0]->getSampleRate()/32 != getSampleRate()/32)
     {
         sourceStreams.clear();
 
@@ -105,7 +105,7 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
             "Analog input channels from a NIDAQ device",
             "identifier",
 
-            getSampleRate()
+            getSampleRate()/32
 
         };
 
@@ -148,10 +148,10 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
         EventChannel::Settings settings {
             EventChannel::Type::TTL,
             getProductName() + "Digital Input Line",
-            "Digital Line from a NIDAQ device containing " + String (mNIDAQ->di.size()) + " inputs",
+            "Stimuli synchronization ttl",
             "identifier",
             currentStream,
-            mNIDAQ->di.size()
+            8
         };
 
         eventChannels->add (new EventChannel (settings));
