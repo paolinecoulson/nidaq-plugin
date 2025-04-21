@@ -634,7 +634,7 @@ void NIDAQmx::run()
                     taskHandlesAI[dev_i],
                     CHANNEL_BUFFER_SIZE*getNsample(),
                     timeout,
-                    DAQmx_Val_GroupByScanNumber,
+                    DAQmx_Val_GroupByChannel,
                     dev_ai_data[dev_i].data(),
                     arraySizeInSamps,
                     NULL,
@@ -657,7 +657,7 @@ void NIDAQmx::run()
             for (int station = 0; station < numDevices; ++station) {
                 for (int ch = 0; ch < numActiveDigitalInputs; ch++) {
                     for(int analogch=0; analogch<(numActiveAnalogInputs); ++analogch)
-                        output[writeIdx++] = dev_ai_data[station][ch +analogch*numActiveAnalogInputs + nsample*numActiveDigitalInputs];  // step per sample
+                        output[writeIdx++] = dev_ai_data[station][ch +analogch*numActiveDigitalInputs*getNsample() + nsample*numActiveDigitalInputs];  // step per sample
                 }
             }
 
