@@ -133,12 +133,10 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
 
             ContinuousChannel::Settings settings {
                     ContinuousChannel::Type::ADC,
-                    "AI" + String (ch),
-                    "Analog Input channel from a NIDAQ device",
+                    "C" + String (ch/getNumActiveDigitalInputs()) + ", L"+String(ch%getNumActiveDigitalInputs()),
+                    "Electrode",
                     "identifier",
-
                     bitVolts,
-
                     currentStream
            };
 
@@ -147,7 +145,7 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
 
         EventChannel::Settings settings {
             EventChannel::Type::TTL,
-            getProductName() + "Digital Input Line",
+            "Synchro ttl",
             "Stimuli synchronization ttl",
             "identifier",
             currentStream,
