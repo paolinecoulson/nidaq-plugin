@@ -388,7 +388,8 @@ void NIDAQmx::run()
     char errBuff[ERR_BUFF_SIZE] = { '\0' };
     char trigName[256];
     NIDAQ::TaskHandle masterHandleAI = 0;
-
+    NIDAQ::int32 termConfig = DAQmx_Val_Diff;
+    NIDAQ::uInt32 bitMask = 0;
     /**************************************/
     /********CONFIG ANALOG CHANNELS********/
     /**************************************/
@@ -404,7 +405,6 @@ void NIDAQmx::run()
 
         for (int i = 0; i < numActiveAnalogInputs; i++)
         {
-            NIDAQ::int32 termConfig = DAQmx_Val_Diff;
 
             SettingsRange voltageRange = devices[dev_i]->voltageRanges[voltageRangeIndex];
             LOGD (ai[dev_i * numActiveAnalogInputs + i]->getName());
@@ -479,23 +479,13 @@ void NIDAQmx::run()
             // Offset in time where this station should start its sequence
             int startSample = taskHandlesDI.size() * samplesPerStation;
             
-            /* for (int line_i = 0; line_i < numLinesPerStation; ++line_i)
+            for (int line_i = 0; line_i < numLinesPerStation; ++line_i)
             {
                 int sampleOffset = startSample + line_i * pulseLengthInSamples;
-                NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32>(1 << line_i);
+                bitMask = static_cast<NIDAQ::uInt32>(1 << line_i);
                 waveform[sampleOffset] = bitMask;  
                 LOGD ("index: ", sampleOffset, "value: ", waveform[sampleOffset]);
-            }*/
-            if (getSlotNumber (dev_i) == "2")
-            {
-                int line_i = 0;
-                int sampleOffset = startSample + line_i * pulseLengthInSamples;
-                NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << line_i);
-                waveform[sampleOffset] = bitMask; 
-
-                LOGD ("index: ", sampleOffset, "value: ", waveform[sampleOffset]);
             }
-                    
         
             NIDAQ::int32 samplesWritten_dig = 0;
             DAQmxErrChk(NIDAQ::DAQmxWriteDigitalU32(
@@ -544,11 +534,10 @@ void NIDAQmx::run()
                             trigName, getSampleRate(), DAQmx_Val_Rising,
                             DAQmx_Val_FiniteSamps, waveform_start.size()));
             
-            //DAQmxErrChk(NIDAQ::DAQmxSetWriteRegenMode(taskHandleDI_Start, DAQmx_Val_AllowRegen));   
 
             DAQmxErrChk (NIDAQ::DAQmxSetBufOutputBufSize (taskHandleDI_Start, waveform_start.size()));
 
-            NIDAQ::uInt32 bitMask = static_cast<NIDAQ::uInt32> (1 << 8);
+            bitMask = static_cast<NIDAQ::uInt32> (1 << 8);
 
             std::fill(waveform_start.begin() + pulse_length, 
                       waveform_start.begin() + 2*pulse_length,
@@ -558,7 +547,7 @@ void NIDAQmx::run()
                        waveform_start.begin() + 4 * pulse_length,
                        bitMask);
 
-            int chunkSize = 25000;
+            int chunkSize = 62500;
             for (int i = 0; i < waveform_start.size(); i += chunkSize) {
                 int currentChunkSize = std::min (chunkSize, (int)(waveform_start.size() - i));
 
@@ -589,13 +578,13 @@ void NIDAQmx::run()
     for (auto& taskHandleDI : taskHandlesDI)
         DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleDI, DAQmx_Val_Task_Commit));
     
-    //DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleDI_Read, DAQmx_Val_Task_Commit));
+    DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleDI_Read, DAQmx_Val_Task_Commit));
     DAQmxErrChk (NIDAQ::DAQmxTaskControl (taskHandleDI_Start, DAQmx_Val_Task_Commit));
 
     for (auto& taskHandleDI : taskHandlesDI)
         DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandleDI));
 
-    //DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandleDI_Read));
+    DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandleDI_Read));
     DAQmxErrChk (NIDAQ::DAQmxStartTask (taskHandleDI_Start));
 
     for(int i=1; i<taskHandlesAI.size(); i++)
@@ -614,7 +603,6 @@ void NIDAQmx::run()
     int numDevices = devices.size();
     int nbr_channel = numActiveAnalogInputs*numDevices*numActiveDigitalInputs;
     juce::uint64 eventCode =0;
-
 
     while (! threadShouldExit())
     {   

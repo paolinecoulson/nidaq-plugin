@@ -133,7 +133,7 @@ void NIDAQThread::updateSettings (OwnedArray<ContinuousChannel>* continuousChann
 
             ContinuousChannel::Settings settings {
                     ContinuousChannel::Type::ADC,
-                    "C" + String (ch/getNumActiveDigitalInputs()) + ", L"+String(ch%getNumActiveDigitalInputs()),
+                    "C" + String (ch/getNumActiveDigitalInputs()) + ",R"+String(ch%getNumActiveDigitalInputs()),
                     "Electrode",
                     "identifier",
                     bitVolts,
