@@ -136,7 +136,6 @@ private:
     ScopedPointer<ComboBox> sampleRateSelectBox;
     ScopedPointer<ComboBox> voltageRangeSelectBox;
     ScopedPointer<UtilityButton> configureDeviceButton;
-    ScopedPointer<ComboBox>  nSampleSelectBox;
 
     Array<File> savingDirectories;
 

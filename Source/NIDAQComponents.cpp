@@ -649,7 +649,8 @@ void NIDAQmx::run()
                 }
             }
 
-            eventCode = *std::max_element(dev_di_data.begin() + nsample * CHANNEL_BUFFER_SIZE, dev_di_data.begin() + (nsample + 1) * CHANNEL_BUFFER_SIZE);
+            eventCode = std::accumulate(dev_di_data.begin() + nsample * CHANNEL_BUFFER_SIZE, 
+                                        dev_di_data.begin() + (nsample + 1) * CHANNEL_BUFFER_SIZE, 0) >0 ? 1: 0 ;
 
             ai_timestamp++;
             aiBuffer->addToBuffer (output, &ai_timestamp, &ts, &eventCode, 1);

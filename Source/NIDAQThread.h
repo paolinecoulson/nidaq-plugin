@@ -151,10 +151,6 @@ public:
     /** Returns the sample rate of the data source.*/
     float getSampleRate();
 
-    /** Sets the number of samples read at once from the device. */
-    void setNsample (int nsample){mNIDAQ->setNsample(nsample);};
-    int getNsample(){return mNIDAQ->getNsample();};
-
     /** Responds to broadcast messages sent during acquisition */
     void handleBroadcastMessage (const String& msg, const int64 systemTimeMillis) override;
 
