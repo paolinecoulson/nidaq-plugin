@@ -643,8 +643,8 @@ void NIDAQmx::run()
         for (int nsample=0; nsample<getNsample(); ++nsample){
             int writeIdx = 0;
             for (int station = 0; station < numDevices; ++station) {
-                for (int ch = 0; ch < numActiveDigitalInputs; ch++) {
-                    for(int analogch=0; analogch<(numActiveAnalogInputs); ++analogch)
+                for(int analogch=0; analogch<(numActiveAnalogInputs); ++analogch){
+                    for (int ch = 0; ch < numActiveDigitalInputs; ch++) 
                         output[writeIdx++] = dev_ai_data[station][ch +analogch*numActiveDigitalInputs*getNsample() + nsample*numActiveDigitalInputs];  // step per sample
                 }
             }
